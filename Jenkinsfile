@@ -7,6 +7,11 @@ pipeline {
         FRONTEND_IMAGE = "taskflow-frontend"
     }
 
+    options {
+        timestamps()
+        ansiColor('xterm')
+    }
+
     stages {
 
         stage('Checkout Code') {
@@ -18,7 +23,9 @@ pipeline {
         stage('Build Backend Image') {
             steps {
                 dir('backend') {
-                    sh 'docker build -t $DOCKERHUB_USER/$BACKEND_IMAGE:latest .'
+                    sh '''
+                        docker build -t $DOCKERHUB_USER/$BACKEND_IMAGE:latest .
+                    '''
                 }
             }
         }
@@ -26,8 +33,34 @@ pipeline {
         stage('Build Frontend Image') {
             steps {
                 dir('frontend') {
-                    sh 'docker build -t $DOCKERHUB_USER/$FRONTEND_IMAGE:latest .'
+                    sh '''
+                        docker build -t $DOCKERHUB_USER/$FRONTEND_IMAGE:latest .
+                    '''
                 }
+            }
+        }
+
+        stage('Trivy Scan - Backend Image') {
+            steps {
+                sh '''
+                    echo "🔍 Scanning backend image with Trivy"
+                    trivy image \
+                      --severity HIGH,CRITICAL \
+                      --exit-code 1 \
+                      $DOCKERHUB_USER/$BACKEND_IMAGE:latest
+                '''
+            }
+        }
+
+        stage('Trivy Scan - Frontend Image') {
+            steps {
+                sh '''
+                    echo "🔍 Scanning frontend image with Trivy"
+                    trivy image \
+                      --severity HIGH,CRITICAL \
+                      --exit-code 1 \
+                      $DOCKERHUB_USER/$FRONTEND_IMAGE:latest
+                '''
             }
         }
 
@@ -35,28 +68,35 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'USER',
-                    passwordVariable: 'PASS'
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
                 )]) {
-                    sh 'echo $PASS | docker login -u $USER --password-stdin'
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                    '''
                 }
             }
         }
 
-        stage('Push Images') {
+        stage('Push Images to Docker Hub') {
             steps {
-                sh 'docker push $DOCKERHUB_USER/$BACKEND_IMAGE:latest'
-                sh 'docker push $DOCKERHUB_USER/$FRONTEND_IMAGE:latest'
+                sh '''
+                    docker push $DOCKERHUB_USER/$BACKEND_IMAGE:latest
+                    docker push $DOCKERHUB_USER/$FRONTEND_IMAGE:latest
+                '''
             }
         }
     }
 
     post {
         success {
-            echo 'CI Pipeline completed successfully'
+            echo "✅ CI + Trivy pipeline completed successfully"
         }
         failure {
-            echo 'CI Pipeline failed'
+            echo "❌ Pipeline failed (Security or Build issue)"
+        }
+        always {
+            sh 'docker logout || true'
         }
     }
 }

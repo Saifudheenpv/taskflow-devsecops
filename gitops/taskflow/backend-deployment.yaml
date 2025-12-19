@@ -12,6 +12,10 @@ spec:
     metadata:
       labels:
         app: taskflow-backend
+      # 🔽 ADD THESE ANNOTATIONS HERE (NEW SECTION)
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
     spec:
       containers:
       - name: backend

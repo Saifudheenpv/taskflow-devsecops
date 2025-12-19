@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TaskFlow</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      display: flex;
+      justify-content: center;
+      margin-top: 50px;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      width: 400px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      padding: 8px;
+      margin-bottom: 6px;
+      background: #eef;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>TaskFlow</h2>
+    <ul id="tasks"></ul>
+  </div>
+
+  <script>
+    fetch("http://api.taskflow.local:30139/tasks")
+      .then(res => res.json())
+      .then(data => {
+        const list = document.getElementById("tasks");
+        data.forEach(task => {
+          const li = document.createElement("li");
+          li.textContent = task.task + " (" + task.status + ")";
+          list.appendChild(li);
+        });
+      });
+  </script>
+</body>
+</html>

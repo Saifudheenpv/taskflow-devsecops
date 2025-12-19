@@ -19,12 +19,24 @@ pipeline {
             }
         }
 
+        stage('SonarQube Scan - Backend') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    dir('backend') {
+                        sh '''
+                          sonar-scanner \
+                          -Dsonar.projectKey=taskflow-backend \
+                          -Dsonar.sources=. 
+                        '''
+                    }
+                }
+            }
+        }
+
         stage('Build Backend Image') {
             steps {
                 dir('backend') {
-                    sh '''
-                        docker build -t $DOCKERHUB_USER/$BACKEND_IMAGE:latest .
-                    '''
+                    sh 'docker build -t $DOCKERHUB_USER/$BACKEND_IMAGE:latest .'
                 }
             }
         }
@@ -32,33 +44,25 @@ pipeline {
         stage('Build Frontend Image') {
             steps {
                 dir('frontend') {
-                    sh '''
-                        docker build -t $DOCKERHUB_USER/$FRONTEND_IMAGE:latest .
-                    '''
+                    sh 'docker build -t $DOCKERHUB_USER/$FRONTEND_IMAGE:latest .'
                 }
             }
         }
 
-        stage('Trivy Scan - Backend Image') {
+        stage('Trivy Scan - Backend') {
             steps {
                 sh '''
-                    echo "Scanning backend image with Trivy"
-                    trivy image \
-                      --severity HIGH,CRITICAL \
-                      --exit-code 1 \
-                      $DOCKERHUB_USER/$BACKEND_IMAGE:latest
+                  trivy image --severity HIGH,CRITICAL --exit-code 1 \
+                  $DOCKERHUB_USER/$BACKEND_IMAGE:latest
                 '''
             }
         }
 
-        stage('Trivy Scan - Frontend Image') {
+        stage('Trivy Scan - Frontend') {
             steps {
                 sh '''
-                    echo "Scanning frontend image with Trivy"
-                    trivy image \
-                      --severity HIGH,CRITICAL \
-                      --exit-code 1 \
-                      $DOCKERHUB_USER/$FRONTEND_IMAGE:latest
+                  trivy image --severity HIGH,CRITICAL --exit-code 1 \
+                  $DOCKERHUB_USER/$FRONTEND_IMAGE:latest
                 '''
             }
         }
@@ -67,21 +71,19 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
+                    usernameVariable: 'USER',
+                    passwordVariable: 'PASS'
                 )]) {
-                    sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                    '''
+                    sh 'echo $PASS | docker login -u $USER --password-stdin'
                 }
             }
         }
 
-        stage('Push Images to Docker Hub') {
+        stage('Push Images') {
             steps {
                 sh '''
-                    docker push $DOCKERHUB_USER/$BACKEND_IMAGE:latest
-                    docker push $DOCKERHUB_USER/$FRONTEND_IMAGE:latest
+                  docker push $DOCKERHUB_USER/$BACKEND_IMAGE:latest
+                  docker push $DOCKERHUB_USER/$FRONTEND_IMAGE:latest
                 '''
             }
         }
@@ -89,13 +91,10 @@ pipeline {
 
     post {
         success {
-            echo "CI + Trivy pipeline completed successfully"
+            echo "CI + Quality + Security pipeline SUCCESS"
         }
         failure {
-            echo "Pipeline failed (Build or Security issue)"
-        }
-        always {
-            sh 'docker logout || true'
+            echo "Pipeline FAILED due to quality or security issues"
         }
     }
 }

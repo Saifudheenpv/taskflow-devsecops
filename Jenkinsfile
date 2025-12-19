@@ -9,7 +9,6 @@ pipeline {
 
     options {
         timestamps()
-        ansiColor('xterm')
     }
 
     stages {
@@ -43,7 +42,7 @@ pipeline {
         stage('Trivy Scan - Backend Image') {
             steps {
                 sh '''
-                    echo "🔍 Scanning backend image with Trivy"
+                    echo "Scanning backend image with Trivy"
                     trivy image \
                       --severity HIGH,CRITICAL \
                       --exit-code 1 \
@@ -55,7 +54,7 @@ pipeline {
         stage('Trivy Scan - Frontend Image') {
             steps {
                 sh '''
-                    echo "🔍 Scanning frontend image with Trivy"
+                    echo "Scanning frontend image with Trivy"
                     trivy image \
                       --severity HIGH,CRITICAL \
                       --exit-code 1 \
@@ -90,10 +89,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ CI + Trivy pipeline completed successfully"
+            echo "CI + Trivy pipeline completed successfully"
         }
         failure {
-            echo "❌ Pipeline failed (Security or Build issue)"
+            echo "Pipeline failed (Build or Security issue)"
         }
         always {
             sh 'docker logout || true'
